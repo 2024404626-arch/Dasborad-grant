@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title> Geran Penyelidikan APB  — Akademi Pengajian Bahasa</title>
+<title>Registri Geran Penyelidikan — Akademi Pengajian Bahasa</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -184,7 +184,7 @@ footer{margin-top:26px; text-align:center; font-family:'IBM Plex Mono',monospace
 <div class="wrap">
 
   <header class="drawer">
-    <div class="drawer-title"> Geran Penyelidikan APB ( Akademi Pengajian Bahasa )</div>
+    <div class="drawer-title"> Geran Penyelidikan APB (Akademi Pengajian Bahasa)</div>
     <div class="drawer-sub">AKADEMI PENGAJIAN BAHASA &nbsp;·&nbsp; SENARAI PROJEK PENYELIDIKAN &nbsp;·&nbsp; <span id="totalCountLabel">—</span> REKOD</div>
   </header>
 
@@ -192,7 +192,7 @@ footer{margin-top:26px; text-align:center; font-family:'IBM Plex Mono',monospace
     <button id="addBtn" class="action-btn primary">+ TAMBAH REKOD</button>
     <button id="importBtn" class="action-btn">⇪ IMPORT CSV</button>
     <input type="file" id="importFile" accept=".csv" hidden>
-    <button id="resetDataBtn" class="action-btn danger">↺ RESET DATA TAMBAHAN</button>
+    <button id="resetDataBtn" class="action-btn danger">↺ RESET SEMUA PERUBAHAN</button>
     <span id="dataStatus" class="data-status"></span>
   </div>
 
@@ -485,14 +485,20 @@ function renderCards(rows){
       <div class="years">${d['Date Start (Year)']||'—'} – ${d['Date End (Year)']||'—'}</div>
       <div class="cost">${shortMoney(d['Cost (RM)'])}</div>
       <div class="status-chip ${statusClass(d.Status)}">${d.Status||''}</div>
-      <div>${d._source==='added' ? `<button class="del-btn" data-id="${d._id}">PADAM</button>` : ''}</div>
+      <div><button class="del-btn" data-id="${d._id}" data-src="${d._source}">PADAM</button></div>
     </div>
   `).join('');
 
   list.querySelectorAll('.del-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
       const id = btn.getAttribute('data-id');
-      overrides.added = overrides.added.filter(r => r._id !== id);
+      const src = btn.getAttribute('data-src');
+      if (!confirm('Padam rekod ini? Tindakan ini boleh dibuat asal dengan butang RESET SEMUA PERUBAHAN.')) return;
+      if (src === 'added'){
+        overrides.added = overrides.added.filter(r => r._id !== id);
+      } else {
+        overrides.deletedIds.push(id);
+      }
       rebuildWorkingData();
       await saveOverrides();
       refreshFilterOptions();
@@ -655,14 +661,14 @@ function splitCSVLine(line){
 
 // ---- reset added data ----
 document.getElementById('resetDataBtn').addEventListener('click', async () => {
-  if (!confirm('Padam semua rekod tambahan/import yang disimpan dalam pelayar ini? Data asal (380 rekod) tidak terjejas.')) return;
+  if (!confirm('Buang SEMUA perubahan (rekod tambahan/import DAN pulihkan semula rekod asal yang dipadam)? Fail sumber 380 rekod tidak terjejas — cuma paparan direset semula.')) return;
   overrides = { added: [], deletedIds: [] };
   await saveOverrides();
   rebuildWorkingData();
   refreshFilterOptions();
   page = 1;
   render();
-  setStatus('Data tambahan direset.');
+  setStatus('Semua perubahan direset.');
 });
 
 // ---- init ----
