@@ -1,6 +1,4 @@
-<!DOCTYPE html>
-<html lang="ms">
-<head>
+>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Registri Geran Penyelidikan — Akademi Pengajian Bahasa</title>
@@ -88,6 +86,11 @@ header.drawer::before{
   font-size:10px; padding:3px 7px; cursor:pointer; border-radius:2px; justify-self:end;
 }
 .card .del-btn:hover{background:var(--rose); color:var(--ink);}
+.card .edit-btn{
+  background:transparent; border:1px solid var(--gold); color:var(--gold); font-family:'IBM Plex Mono',monospace;
+  font-size:10px; padding:3px 7px; cursor:pointer; border-radius:2px; margin-right:4px;
+}
+.card .edit-btn:hover{background:var(--gold); color:var(--ink);}
 
 /* ---- KPI row ---- */
 .kpis{display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:22px;}
@@ -138,7 +141,7 @@ button#resetBtn:hover{background:var(--rose); color:var(--ink);}
 .cards{display:flex; flex-direction:column; gap:8px; margin-bottom:18px;}
 .card{
   border:1px solid var(--line); background:var(--panel);
-  padding:12px 16px; display:grid; grid-template-columns:110px 1fr 130px 100px 90px 60px; gap:14px; align-items:center;
+  padding:12px 16px; display:grid; grid-template-columns:110px 1fr 130px 100px 90px 130px; gap:14px; align-items:center;
   transition:background .15s;
 }
 .card:hover{background:var(--panel-2);}
@@ -184,7 +187,7 @@ footer{margin-top:26px; text-align:center; font-family:'IBM Plex Mono',monospace
 <div class="wrap">
 
   <header class="drawer">
-    <div class="drawer-title"> Geran Penyelidikan APB</div>
+    <div class="drawer-title"> Geran Penyelidikan APB 2026 </div>
     <div class="drawer-sub">AKADEMI PENGAJIAN BAHASA &nbsp;·&nbsp; SENARAI PROJEK PENYELIDIKAN &nbsp;·&nbsp; <span id="totalCountLabel">—</span> REKOD</div>
   </header>
 
@@ -254,7 +257,7 @@ footer{margin-top:26px; text-align:center; font-family:'IBM Plex Mono',monospace
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal">
     <div class="modal-head">
-      <div class="drawer-sub" style="color:var(--gold)">KAD KATALOG BARU</div>
+      <div class="drawer-sub" id="modalTitle" style="color:var(--gold)">KAD KATALOG BARU</div>
       <button id="modalClose" class="action-btn">✕</button>
     </div>
     <form id="addForm">
@@ -296,7 +299,8 @@ const BASE = JSON.parse(document.getElementById('data-json').textContent)
   .map((d,i) => ({ ...d, _id: 'orig-' + i, _source: 'orig' }));
 
 const STORAGE_KEY = 'grants-overrides';
-let overrides = { added: [], deletedIds: [] };
+let overrides = { added: [], deletedIds: [], edited: {} };
+let editingId = null;
 let workingData = [...BASE];
 
 const money = n => n == null ? '—' : 'RM ' + Number(n).toLocaleString('en-MY', {maximumFractionDigits:0});
@@ -317,7 +321,7 @@ function setStatus(msg, isError){
   if (msg) setTimeout(() => { if (el.textContent === msg) el.textContent = ''; }, 3500);
 }
 
-// ---- persistence (browser localStorage — works on any static host) ----
+// ---- persistence ----
 async function loadOverrides(){
   try{
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -325,9 +329,10 @@ async function loadOverrides(){
       overrides = JSON.parse(raw);
       overrides.added = overrides.added || [];
       overrides.deletedIds = overrides.deletedIds || [];
+      overrides.edited = overrides.edited || {};
     }
   }catch(e){
-    overrides = { added: [], deletedIds: [] };
+    overrides = { added: [], deletedIds: [], edited: {} };
   }
   rebuildWorkingData();
 }
@@ -342,7 +347,9 @@ async function saveOverrides(){
 
 function rebuildWorkingData(){
   const deleted = new Set(overrides.deletedIds);
-  workingData = [...BASE, ...overrides.added].filter(d => !deleted.has(d._id));
+  workingData = [...BASE, ...overrides.added]
+    .filter(d => !deleted.has(d._id))
+    .map(d => overrides.edited[d._id] ? { ...d, ...overrides.edited[d._id] } : d);
 }
 
 // ---- filter option population (dynamic, based on current workingData) ----
@@ -485,9 +492,13 @@ function renderCards(rows){
       <div class="years">${d['Date Start (Year)']||'—'} – ${d['Date End (Year)']||'—'}</div>
       <div class="cost">${shortMoney(d['Cost (RM)'])}</div>
       <div class="status-chip ${statusClass(d.Status)}">${d.Status||''}</div>
-      <div><button class="del-btn" data-id="${d._id}" data-src="${d._source}">PADAM</button></div>
+      <div><button class="edit-btn" data-id="${d._id}">EDIT</button><button class="del-btn" data-id="${d._id}" data-src="${d._source}">PADAM</button></div>
     </div>
   `).join('');
+
+  list.querySelectorAll('.edit-btn').forEach(btn => {
+    btn.addEventListener('click', () => openEditModal(btn.getAttribute('data-id')));
+  });
 
   list.querySelectorAll('.del-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
@@ -521,7 +532,13 @@ function renderCards(rows){
 function render(){
   const rows = getFiltered();
   renderKPIs(rows);
-  renderCharts(rows);
+  try{
+    renderCharts(rows);
+  }catch(e){
+    document.querySelectorAll('.chart-card canvas').forEach(c => {
+      c.outerHTML = '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:var(--paper-dim);padding:20px 0;text-align:center;">Carta tidak dapat dimuatkan (CDN disekat/tiada internet). Senarai rekod di bawah tetap berfungsi.</div>';
+    });
+  }
   renderCards(rows);
 }
 
@@ -538,8 +555,37 @@ document.getElementById('resetBtn').addEventListener('click', () => {
 // ---- Add-record modal ----
 const overlay = document.getElementById('modalOverlay');
 function openModal(){ overlay.classList.add('open'); }
-function closeModal(){ overlay.classList.remove('open'); document.getElementById('addForm').reset(); }
-document.getElementById('addBtn').addEventListener('click', openModal);
+function closeModal(){ overlay.classList.remove('open'); document.getElementById('addForm').reset(); editingId = null; }
+document.getElementById('addBtn').addEventListener('click', () => {
+  editingId = null;
+  document.getElementById('modalTitle').textContent = 'KAD KATALOG BARU';
+  document.getElementById('addForm').reset();
+  openModal();
+});
+
+function openEditModal(id){
+  editingId = id;
+  const rec = workingData.find(d => d._id === id);
+  if (!rec) return;
+  document.getElementById('modalTitle').textContent = 'KEMASKINI REKOD';
+  document.getElementById('in_grant').value = rec['Grant Type'] || '';
+  document.getElementById('in_status').value = rec['Status'] || 'Active';
+  document.getElementById('in_title').value = rec['Title'] || '';
+  document.getElementById('in_researcher').value = rec["Lead Researcher's"] || '';
+  document.getElementById('in_staffid').value = rec['Staff ID'] || '';
+  document.getElementById('in_fileno').value = rec['File No'] || '';
+  document.getElementById('in_projcode').value = rec['Project Code'] || '';
+  document.getElementById('in_datestart').value = rec['Date Start'] || '';
+  document.getElementById('in_dateend').value = rec['Date End'] || '';
+  document.getElementById('in_category').value = rec['Category'] || '';
+  document.getElementById('in_agency').value = rec['Financing Agencies'] || '';
+  document.getElementById('in_cost').value = rec['Cost (RM)'] ?? '';
+  document.getElementById('in_balance').value = rec['Balance (RM)'] ?? '';
+  document.getElementById('in_faculty').value = rec['Faculty'] || '';
+  document.getElementById('in_campus').value = rec['Campus'] || '';
+  document.getElementById('in_progress').value = rec['Progress(%)'] ?? '';
+  openModal();
+}
 document.getElementById('modalClose').addEventListener('click', closeModal);
 document.getElementById('cancelBtn').addEventListener('click', closeModal);
 overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
@@ -549,7 +595,7 @@ document.getElementById('addForm').addEventListener('submit', async e => {
   const val = id => document.getElementById(id).value.trim();
   const ds = val('in_datestart');
   const de = val('in_dateend');
-  const rec = {
+  const fields = {
     'Grant Type': val('in_grant'),
     'File No': val('in_fileno'),
     'Project Code': val('in_projcode'),
@@ -568,17 +614,29 @@ document.getElementById('addForm').addEventListener('submit', async e => {
     'Faculty': val('in_faculty'),
     'Campus': val('in_campus'),
     'Progress(%)': val('in_progress') ? Number(val('in_progress')) : null,
-    '_id': 'added-' + Date.now() + '-' + Math.random().toString(36).slice(2,7),
-    '_source': 'added',
   };
-  overrides.added.push(rec);
+
+  if (editingId){
+    const source = editingId.startsWith('added-') ? 'added' : 'orig';
+    if (source === 'added'){
+      const idx = overrides.added.findIndex(r => r._id === editingId);
+      if (idx > -1) overrides.added[idx] = { ...overrides.added[idx], ...fields };
+    } else {
+      overrides.edited[editingId] = { ...(overrides.edited[editingId]||{}), ...fields };
+    }
+    setStatus('Rekod dikemaskini.');
+  } else {
+    const rec = { ...fields, '_id': 'added-' + Date.now() + '-' + Math.random().toString(36).slice(2,7), '_source': 'added' };
+    overrides.added.push(rec);
+    setStatus('Rekod baru disimpan.');
+  }
+
   rebuildWorkingData();
   await saveOverrides();
   refreshFilterOptions();
   page = 1;
   render();
   closeModal();
-  setStatus('Rekod baru disimpan.');
 });
 
 // ---- CSV import ----
@@ -662,7 +720,7 @@ function splitCSVLine(line){
 // ---- reset added data ----
 document.getElementById('resetDataBtn').addEventListener('click', async () => {
   if (!confirm('Buang SEMUA perubahan (rekod tambahan/import DAN pulihkan semula rekod asal yang dipadam)? Fail sumber 380 rekod tidak terjejas — cuma paparan direset semula.')) return;
-  overrides = { added: [], deletedIds: [] };
+  overrides = { added: [], deletedIds: [], edited: {} };
   await saveOverrides();
   rebuildWorkingData();
   refreshFilterOptions();
