@@ -1,4 +1,6 @@
->
+<!DOCTYPE html>
+<html lang="ms">
+<head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Registri Geran Penyelidikan — Akademi Pengajian Bahasa</title>
@@ -187,7 +189,7 @@ footer{margin-top:26px; text-align:center; font-family:'IBM Plex Mono',monospace
 <div class="wrap">
 
   <header class="drawer">
-    <div class="drawer-title"> Geran Penyelidikan APB 2026 </div>
+    <div class="drawer-title">GERAN PENYELIDIKAN APB </div>
     <div class="drawer-sub">AKADEMI PENGAJIAN BAHASA &nbsp;·&nbsp; SENARAI PROJEK PENYELIDIKAN &nbsp;·&nbsp; <span id="totalCountLabel">—</span> REKOD</div>
   </header>
 
@@ -225,8 +227,8 @@ footer{margin-top:26px; text-align:center; font-family:'IBM Plex Mono',monospace
     <button id="resetBtn">RESET TAPIS</button>
     <div class="field search-row">
       <label for="fSearch">Cari (Tajuk / Penyelidik Ketua)</label>
-      <input type="text" id="fSearch" placeholder="mis. Vocational, Kamil, Arabic...">
-    </div>
+      <input type="text" id="fSearch" placeholder="mis. Vocational, Kamil, Arabic, atau 'bahasa', 'pelajar', 'kajian'...">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--paper-dim);margin-top:5px;">Carian menyokong Bahasa Melayu untuk istilah umum (contoh: "bahasa" → "language")</div>    </div>
   </div>
 
   <div class="charts">
@@ -345,11 +347,24 @@ async function saveOverrides(){
   }
 }
 
+function getEffectiveStatus(d){
+  if (d.Status !== 'Active') return { status: d.Status, auto:false };
+  let endDate = null;
+  if (d['Date End']) endDate = new Date(d['Date End']);
+  else if (d['Date End (Year)']) endDate = new Date(d['Date End (Year)'], 11, 31);
+  if (endDate && !isNaN(endDate) && endDate < new Date()) return { status:'Completed', auto:true };
+  return { status: d.Status, auto:false };
+}
+
 function rebuildWorkingData(){
   const deleted = new Set(overrides.deletedIds);
   workingData = [...BASE, ...overrides.added]
     .filter(d => !deleted.has(d._id))
-    .map(d => overrides.edited[d._id] ? { ...d, ...overrides.edited[d._id] } : d);
+    .map(d => overrides.edited[d._id] ? { ...d, ...overrides.edited[d._id] } : d)
+    .map(d => {
+      const eff = getEffectiveStatus(d);
+      return { ...d, Status: eff.status, _autoCompleted: eff.auto };
+    });
 }
 
 // ---- filter option population (dynamic, based on current workingData) ----
@@ -384,6 +399,42 @@ let page = 1;
 const PAGE_SIZE = 12;
 let charts = {};
 
+// Kamus carian dwibahasa (Melayu → Inggeris) — tajuk projek dalam data ini kebanyakannya Bahasa Inggeris,
+// jadi carian Bahasa Melayu dipadankan dahulu ke istilah Inggeris yang setara.
+const MS_EN_DICT = {
+  'bahasa':'language', 'pelajar':'student', 'pelajar-pelajar':'students', 'pengajaran':'teaching',
+  'pembelajaran':'learning', 'kajian':'study', 'penyelidikan':'research', 'sekolah':'school',
+  'guru':'teacher', 'komunikasi':'communication', 'teknologi':'technology', 'sosial':'social',
+  'media sosial':'social media', 'kesihatan':'health', 'kesihatan mental':'mental health', 'mental':'mental',
+  'kanak-kanak':'children', 'kanak kanak':'children', 'wanita':'women', 'lelaki':'men',
+  'universiti':'university', 'sekolah menengah':'secondary school', 'sekolah rendah':'primary school',
+  'dewasa':'adult', 'remaja':'adolescent', 'belia':'youth', 'kemahiran':'skill', 'kesan':'effect',
+  'impak':'impact', 'strategi':'strategy', 'persepsi':'perception', 'sikap':'attitude',
+  'cabaran':'challenge', 'halangan':'barrier', 'motivasi':'motivation', 'kebimbangan':'anxiety',
+  'keyakinan':'confidence', 'penulisan':'writing', 'bacaan':'reading', 'pertuturan':'speaking',
+  'pendengaran':'listening', 'tatabahasa':'grammar', 'kosa kata':'vocabulary', 'perbendaharaan kata':'vocabulary',
+  'bahasa inggeris':'english', 'bahasa arab':'arabic', 'bahasa mandarin':'mandarin', 'bahasa cina':'mandarin',
+  'bahasa melayu':'malay', 'bahasa jepun':'japanese', 'budaya':'culture', 'identiti':'identity',
+  'jantina':'gender', 'permainan':'game', 'aplikasi':'application', 'dalam talian':'online',
+  'jarak jauh':'distance', 'kecerdasan buatan':'artificial intelligence', 'industri':'industry',
+  'pekerjaan':'employment', 'pemasaran':'marketing', 'pengurusan':'management', 'kewangan':'finance',
+  'ekonomi':'economy', 'politik':'politics', 'undang-undang':'law', 'kesusasteraan':'literature',
+  'puisi':'poetry', 'cerpen':'short story', 'novel':'novel', 'filem':'film', 'muzik':'music',
+  'lagu':'song', 'seni':'art', 'sejarah':'history', 'agama':'religion', 'islam':'islam', 'moral':'moral',
+  'etika':'ethics', 'alam sekitar':'environment', 'pelancongan':'tourism', 'disleksia':'dyslexia',
+  'autisme':'autism', 'kurang upaya':'disability', 'warga emas':'elderly', 'prasekolah':'preschool',
+  'analisis':'analysis', 'persepsi pelajar':'student perception', 'pensyarah':'lecturer',
+  'staf':'staff', 'kakitangan':'staff', 'covid':'covid', 'pandemik':'pandemic', 'kognitif':'cognitive',
+  'psikologi':'psychology', 'digital':'digital', 'maya':'virtual', 'realiti maya':'virtual reality',
+};
+
+function expandQueryTerms(q){
+  const terms = new Set([q]);
+  if (MS_EN_DICT[q]) terms.add(MS_EN_DICT[q]);
+  q.split(/\s+/).forEach(w => { if (MS_EN_DICT[w]) terms.add(MS_EN_DICT[w]); });
+  return [...terms];
+}
+
 function getFiltered(){
   const g = document.getElementById('fGrant').value;
   const y = document.getElementById('fYear').value;
@@ -391,6 +442,7 @@ function getFiltered(){
   const cam = document.getElementById('fCampus').value;
   const st = document.getElementById('fStatus').value;
   const q = document.getElementById('fSearch').value.trim().toLowerCase();
+  const qTerms = q ? expandQueryTerms(q) : [];
 
   return workingData.filter(d => {
     if (g && d['Grant Type'] !== g) return false;
@@ -400,7 +452,7 @@ function getFiltered(){
     if (st && d['Status'] !== st) return false;
     if (q){
       const hay = ((d['Title']||'') + ' ' + (d["Lead Researcher's"]||'')).toLowerCase();
-      if (!hay.includes(q)) return false;
+      if (!qTerms.some(t => hay.includes(t))) return false;
     }
     return true;
   });
@@ -491,7 +543,7 @@ function renderCards(rows){
       </div>
       <div class="years">${d['Date Start (Year)']||'—'} – ${d['Date End (Year)']||'—'}</div>
       <div class="cost">${shortMoney(d['Cost (RM)'])}</div>
-      <div class="status-chip ${statusClass(d.Status)}">${d.Status||''}</div>
+      <div class="status-chip ${statusClass(d.Status)}">${d.Status||''}${d._autoCompleted ? ' · Auto' : ''}</div>
       <div><button class="edit-btn" data-id="${d._id}">EDIT</button><button class="del-btn" data-id="${d._id}" data-src="${d._source}">PADAM</button></div>
     </div>
   `).join('');
