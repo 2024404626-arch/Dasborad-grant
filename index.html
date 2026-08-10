@@ -226,8 +226,8 @@ footer{margin-top:26px; text-align:center; font-family:'IBM Plex Mono',monospace
     </div>
     <button id="resetBtn">RESET TAPIS</button>
     <div class="field search-row">
-      <label for="fSearch">Cari (Tajuk / Penyelidik Ketua / Kategori) — Boleh taip BM atau BI</label>
-      <input type="text" id="fSearch" placeholder="mis. sains, geran, aktif, Kamil, Arabic...">
+      <label for="fSearch">Cari (Tajuk / Penyelidik / No. Staff / No. Fail / Kategori) — Boleh taip BM atau BI</label>
+      <input type="text" id="fSearch" placeholder="mis. 339412, UiTM.800-3, sains, geran, aktif, Kamil...">
     </div>
   </div>
 
@@ -492,7 +492,8 @@ function getFiltered(){
     if (q){
       const hay = ([
         d['Title'], d["Lead Researcher's"], d['Category'], d['Grant Type'],
-        d['Status'], d['Financing Agencies'], d['Faculty'], d['Campus']
+        d['Status'], d['Financing Agencies'], d['Faculty'], d['Campus'],
+        d['Staff ID'], d['File No'], d['Project Code']
       ].filter(Boolean).join(' ')).toLowerCase();
       const allGroupsMatch = termGroups.every(variants => variants.some(v => hay.includes(v)));
       if (!allGroupsMatch) return false;
