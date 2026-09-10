@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>R Geran Penyelidikan — Akademi Pengajian Bahasa</title>
+<title> Geran Penyelidikan — Akademi Pengajian Bahasa</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -243,6 +243,14 @@ footer{margin-top:26px; text-align:center; font-family:'IBM Plex Mono',monospace
     <div class="chart-card">
       <h3>Projek Bermula mengikut Tahun</h3>
       <canvas id="chartYear"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3>Top 5 Kos Projek (Tertinggi → Terendah)</h3>
+      <canvas id="chartCostTop5"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3>Kategori Projek Berdasarkan Tajuk</h3>
+      <canvas id="chartTitleCategory"></canvas>
     </div>
   </div>
 
@@ -563,6 +571,53 @@ function renderCharts(rows){
     data: { labels: yKeys, datasets: [{ data: yKeys.map(k=>yCounts[k]), borderColor:'#c9a227', backgroundColor:'rgba(201,162,39,0.15)', fill:true, tension:.25, pointRadius:2 }] },
     options: { plugins: { legend: { display:false } },
       scales: { x: { grid:{display:false} }, y: { grid:{color:gridColor}, ticks:{precision:0} } } }
+  });
+
+  // Top 5 kos projek
+  const costTop5 = rows
+    .filter(d => d['Cost (RM)'] != null && d['Cost (RM)'] !== '' && !isNaN(Number(d['Cost (RM)'])))
+    .sort((a,b) => Number(b['Cost (RM)']) - Number(a['Cost (RM)']))
+    .slice(0,5);
+  if (charts.costTop5) charts.costTop5.destroy();
+  charts.costTop5 = new Chart(document.getElementById('chartCostTop5'), {
+    type: 'bar',
+    data: {
+      labels: costTop5.map(d => (d['Title'] || 'Tanpa tajuk').length > 45 ? (d['Title'] || 'Tanpa tajuk').slice(0,45) + '…' : (d['Title'] || 'Tanpa tajuk')),
+      datasets: [{ data: costTop5.map(d => Number(d['Cost (RM)'])), backgroundColor:'#c9a227', borderRadius:1 }]
+    },
+    options: { indexAxis:'y', plugins:{legend:{display:false}}, scales:{x:{grid:{color:gridColor},ticks:{callback:v=>'RM '+Number(v).toLocaleString()}},y:{grid:{display:false}}}}
+  });
+
+  // Kategori berdasarkan kata kunci tajuk
+  const titleCategories = {
+    'Bahasa & Linguistik':['language','linguistic','linguistics','bahasa','linguistik'],
+    'Pendidikan':['education','educational','teaching','learning','pedagog'],
+    'Komunikasi':['communication','communicative','media'],
+    'Kesusasteraan':['literature','literary','sastera','kesusasteraan'],
+    'Budaya':['culture','cultural','heritage','budaya'],
+    'Teknologi':['technology','technological','digital','computer','artificial intelligence',' ai '],
+    'Psikologi':['psychology','psychological','mental'],
+    'Sosial & Masyarakat':['social','society','community','masyarakat'],
+    'Pengurusan & Perniagaan':['management','business','entrepreneur','entrepreneurship'],
+    'Lain-lain':[]
+  };
+  const titleCatCounts = {};
+  Object.keys(titleCategories).forEach(k=>titleCatCounts[k]=0);
+  rows.forEach(d=>{
+    const title = String(d['Title'] || '').toLowerCase();
+    let found = 'Lain-lain';
+    for (const [cat, words] of Object.entries(titleCategories)) {
+      if (cat==='Lain-lain') continue;
+      if (words.some(w=>title.includes(w))) { found=cat; break; }
+    }
+    titleCatCounts[found]++;
+  });
+  const catEntries = Object.entries(titleCatCounts).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
+  if (charts.titleCategory) charts.titleCategory.destroy();
+  charts.titleCategory = new Chart(document.getElementById('chartTitleCategory'), {
+    type:'bar',
+    data:{labels:catEntries.map(e=>e[0]),datasets:[{data:catEntries.map(e=>e[1]),backgroundColor:'#5fb0a3',borderRadius:1}]},
+    options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{grid:{color:gridColor},ticks:{precision:0}},y:{grid:{display:false}}}}
   });
 }
 
