@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title> Geran Penyelidikan — Akademi Pengajian Bahasa</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -176,6 +177,21 @@ button#resetBtn:hover{background:var(--rose); color:var(--ink);}
 
 footer{margin-top:26px; text-align:center; font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:var(--paper-dim); letter-spacing:.04em;}
 
+/* ---- Duplicate detection ---- */
+.duplicate-badge{
+  display:inline-block; min-width:18px; padding:1px 5px; margin-left:5px;
+  border:1px solid var(--rose); color:var(--rose); font-size:9px; border-radius:2px;
+}
+.duplicate-row{
+  border:1px solid var(--rose); background:rgba(201,106,90,.08);
+  padding:10px 12px; margin-bottom:7px; font-size:11px; line-height:1.45;
+}
+.duplicate-row strong{color:var(--rose);}
+.duplicate-empty{
+  padding:24px; text-align:center; color:var(--teal);
+  font-family:'IBM Plex Mono',monospace; font-size:12px;
+}
+
 @media (max-width:980px){
   .kpis{grid-template-columns:repeat(2,1fr);}
   .filters{grid-template-columns:1fr 1fr;}
@@ -183,6 +199,154 @@ footer{margin-top:26px; text-align:center; font-family:'IBM Plex Mono',monospace
   .card{grid-template-columns:1fr; gap:6px;}
   .card .cost, .card .years, .card .tag, .status-chip{justify-self:start; text-align:left;}
 }
+
+/* ===== MODERN DASHBOARD REFRESH ===== */
+:root{
+  --ink:#08151b;
+  --ink-2:#0d2029;
+  --panel:#102a34;
+  --panel-2:#163844;
+  --line:#28515d;
+  --paper:#f3f7f8;
+  --paper-dim:#9db2ba;
+  --gold:#f2c14e;
+  --gold-dim:#c69a2d;
+  --teal:#55d6be;
+  --amber:#f0a35b;
+  --rose:#ff7182;
+  --blue:#69a9ff;
+  --radius:12px;
+}
+html{scroll-behavior:smooth;}
+body{
+  padding:28px 22px 64px;
+  background:
+    radial-gradient(circle at 8% 0%, rgba(85,214,190,.13), transparent 28%),
+    radial-gradient(circle at 92% 10%, rgba(105,169,255,.11), transparent 25%),
+    linear-gradient(135deg,#061117 0%,#091b23 48%,#07151c 100%);
+  min-height:100vh;
+}
+.wrap{max-width:1400px;}
+header.drawer{
+  border:1px solid rgba(85,214,190,.28);
+  background:linear-gradient(135deg,rgba(17,48,58,.96),rgba(8,27,35,.96));
+  padding:30px 32px 28px;
+  margin-bottom:18px;
+  border-radius:20px;
+  box-shadow:0 18px 55px rgba(0,0,0,.24), inset 0 1px rgba(255,255,255,.04);
+  overflow:hidden;
+}
+header.drawer::after{
+  content:""; position:absolute; width:260px; height:260px; right:-70px; top:-120px;
+  border-radius:50%; border:1px solid rgba(85,214,190,.18);
+  box-shadow:0 0 0 35px rgba(85,214,190,.035),0 0 0 70px rgba(85,214,190,.02);
+}
+header.drawer::before{
+  content:"APB • RESEARCH DASHBOARD";
+  top:16px; left:28px; background:rgba(242,193,78,.95); color:#102027;
+  border-radius:999px; padding:5px 12px; font-size:9px; letter-spacing:.12em;
+}
+.drawer-title{
+  margin:18px 0 7px;
+  font-family:'IBM Plex Sans',sans-serif; font-weight:700;
+  font-size:clamp(27px,4vw,42px); letter-spacing:-.025em;
+}
+.drawer-sub{font-size:11px;color:#a9c0c7;letter-spacing:.08em;}
+.data-bar{
+  padding:12px; margin-bottom:18px; border:1px solid rgba(40,81,93,.8);
+  background:rgba(13,32,41,.72); border-radius:14px; backdrop-filter:blur(12px);
+}
+.action-btn,button#resetBtn{
+  border-radius:9px; padding:9px 14px; transition:all .18s ease;
+}
+.action-btn:hover,button#resetBtn:hover{transform:translateY(-1px);box-shadow:0 8px 20px rgba(0,0,0,.18);}
+.action-btn.primary{background:linear-gradient(135deg,#f6ce62,#e8ae34);box-shadow:0 6px 18px rgba(242,193,78,.16);}
+.action-btn.danger{background:rgba(255,113,130,.055);}
+.data-status{padding-left:4px;}
+.kpis{grid-template-columns:repeat(5,minmax(0,1fr));gap:14px;margin-bottom:18px;}
+.kpi{
+  position:relative; overflow:hidden; border:1px solid rgba(40,81,93,.9);
+  background:linear-gradient(145deg,rgba(16,42,52,.96),rgba(10,30,38,.96));
+  padding:17px 18px 16px; border-radius:15px;
+  box-shadow:0 12px 28px rgba(0,0,0,.13);
+  transition:transform .18s ease,border-color .18s ease;
+}
+.kpi:hover{transform:translateY(-2px);border-color:rgba(85,214,190,.5);}
+.kpi::after{content:"";position:absolute;left:0;bottom:0;width:38%;height:3px;background:linear-gradient(90deg,var(--teal),transparent);}
+.kpi .label{font-size:9.5px;color:#73d9c7;}
+.kpi .value{font-family:'IBM Plex Sans',sans-serif;font-size:29px;font-weight:700;letter-spacing:-.03em;}
+.kpi .sub{color:#91aab2;}
+.filters{
+  border:1px solid rgba(40,81,93,.85); background:rgba(13,32,41,.82);
+  padding:17px; margin-bottom:18px; border-radius:15px; gap:12px;
+  box-shadow:0 12px 30px rgba(0,0,0,.12); backdrop-filter:blur(10px);
+}
+select,input[type=text]{
+  background:#091b23; border:1px solid #2c5560; border-radius:9px; padding:10px 11px;
+}
+select:hover,input[type=text]:hover{border-color:#4a7883;}
+select:focus,input:focus{outline:2px solid rgba(85,214,190,.55);outline-offset:1px;}
+.field label{font-size:9px;color:#8eaab2;}
+button#resetBtn{height:39px;}
+.charts{grid-template-columns:repeat(12,1fr);gap:14px;margin-bottom:20px;}
+.chart-card{
+  border:1px solid rgba(40,81,93,.88); background:linear-gradient(145deg,rgba(16,42,52,.94),rgba(10,30,38,.94));
+  padding:16px 17px 12px; border-radius:15px; box-shadow:0 12px 30px rgba(0,0,0,.12);
+}
+.chart-card:nth-child(1){grid-column:span 5;}
+.chart-card:nth-child(2){grid-column:span 3;}
+.chart-card:nth-child(3){grid-column:span 4;}
+.chart-card:nth-child(4){grid-column:span 6;}
+.chart-card:nth-child(5){grid-column:span 6;}
+.chart-card h3{font-size:10px;color:#8de4d5;margin-bottom:13px;}
+.chart-card canvas{max-height:235px;}
+.records-head{
+  padding:4px 3px 12px; border-bottom:1px solid rgba(40,81,93,.75); margin-bottom:12px;
+}
+.records-head h2{font-family:'IBM Plex Sans',sans-serif;font-size:22px;font-weight:700;letter-spacing:-.02em;}
+.count-tag{padding:6px 10px;border:1px solid #2c5560;border-radius:999px;background:rgba(16,42,52,.7);}
+.cards{gap:10px;}
+.card{
+  border:1px solid rgba(40,81,93,.82); background:linear-gradient(145deg,rgba(15,39,48,.95),rgba(10,29,37,.95));
+  padding:14px 17px; border-radius:13px; grid-template-columns:120px 1fr 130px 105px 100px 145px;
+  box-shadow:0 8px 22px rgba(0,0,0,.10); transition:all .18s ease;
+}
+.card:hover{background:linear-gradient(145deg,#143945,#102c36);border-color:rgba(85,214,190,.42);transform:translateY(-1px);}
+.card .tag{background:rgba(157,178,186,.14);color:#c9d9dd;border:1px solid rgba(157,178,186,.22);border-radius:999px;padding:5px 9px;}
+.card .titleblock .t{font-size:14px;font-weight:600;}
+.card .titleblock .r{color:#8da7af;}
+.card .years{color:#9cb3ba;}
+.card .cost{color:#f2c95e;font-weight:600;}
+.status-chip{border-radius:999px;padding:5px 10px;}
+.pager button{border-radius:9px;padding:7px 13px;}
+.empty{border-radius:12px;background:rgba(16,42,52,.55);}
+footer{margin-top:30px;padding-top:18px;border-top:1px solid rgba(40,81,93,.55);}
+.modal-overlay{background:rgba(2,10,14,.78);backdrop-filter:blur(6px);}
+.modal{border-radius:18px;background:linear-gradient(145deg,#102b35,#0b2029);border:1px solid #315b66;box-shadow:0 24px 80px rgba(0,0,0,.4);}
+.duplicate-row{border-radius:10px;}
+@media (max-width:1180px){
+  .kpis{grid-template-columns:repeat(3,1fr);}
+  .chart-card:nth-child(n){grid-column:span 6;}
+  .card{grid-template-columns:110px 1fr 110px 90px 95px 125px;gap:10px;}
+}
+@media (max-width:760px){
+  body{padding:15px 10px 40px;}
+  header.drawer{padding:28px 19px 20px;border-radius:16px;}
+  .drawer-title{font-size:27px;}
+  .kpis{grid-template-columns:1fr 1fr;}
+  .filters{grid-template-columns:1fr 1fr;padding:13px;}
+  .search-row{grid-column:1/-1;}
+  .chart-card:nth-child(n){grid-column:1/-1;}
+  .card{grid-template-columns:1fr;gap:8px;align-items:start;}
+  .card .cost,.card .years,.card .tag,.status-chip{justify-self:start;text-align:left;}
+  .data-bar{gap:7px;}
+}
+@media (max-width:480px){
+  .kpis{grid-template-columns:1fr;}
+  .filters{grid-template-columns:1fr;}
+  .search-row{grid-column:auto;}
+}
+
 </style>
 </head>
 <body>
@@ -195,8 +359,9 @@ footer{margin-top:26px; text-align:center; font-family:'IBM Plex Mono',monospace
 
   <div class="data-bar">
     <button id="addBtn" class="action-btn primary">+ TAMBAH REKOD</button>
-    <button id="importBtn" class="action-btn">⇪ IMPORT CSV</button>
-    <input type="file" id="importFile" accept=".csv" hidden>
+    <button id="importBtn" class="action-btn">⇪ IMPORT EXCEL / CSV</button>
+    <input type="file" id="importFile" accept=".xlsx,.xls,.csv" hidden>
+    <button id="duplicateBtn" class="action-btn danger">⚠ DUPLIKAT <span id="duplicateBadge" class="duplicate-badge">0</span></button>
     <button id="resetDataBtn" class="action-btn danger">↺ RESET SEMUA PERUBAHAN</button>
     <span id="dataStatus" class="data-status"></span>
   </div>
@@ -262,6 +427,21 @@ footer{margin-top:26px; text-align:center; font-family:'IBM Plex Mono',monospace
   <div class="pager" id="pager"></div>
 
   <footer>DATA: research_project_fc1cm27.xls &nbsp;·&nbsp; DASHBOARD DIJANA UNTUK SEMAKAN DALAMAN &nbsp;·&nbsp; REKOD TAMBAHAN DISIMPAN SECARA PERIBADI DALAM PELAYAR ANDA</footer>
+</div>
+
+<div class="modal-overlay" id="duplicateOverlay">
+  <div class="modal" style="max-width:900px">
+    <div class="modal-head">
+      <div class="drawer-sub" style="color:var(--rose)">SEMAKAN DUPLIKAT</div>
+      <button id="duplicateClose" class="action-btn">✕</button>
+    </div>
+    <div id="duplicateSummary" style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--paper);margin-bottom:12px;"></div>
+    <div id="duplicateList" style="max-height:55vh;overflow:auto;"></div>
+    <div class="modal-actions">
+      <button type="button" id="duplicateClearBtn" class="action-btn danger">PADAM SEMUA REKOD DUPLIKAT IMPORT</button>
+      <button type="button" id="duplicateCloseBtn" class="action-btn">TUTUP</button>
+    </div>
+  </div>
 </div>
 
 <div class="modal-overlay" id="modalOverlay">
@@ -393,6 +573,9 @@ function refreshFilterOptions(){
 let page = 1;
 const PAGE_SIZE = 12;
 let charts = {};
+let duplicateRecords = [];
+let importedDuplicateRecords = [];
+
 
 // ---- Malay -> English search dictionary ----
 // Kebanyakan data (Title, Category, Status, dsb.) disimpan dalam Bahasa Inggeris.
@@ -662,6 +845,7 @@ function renderCards(rows){
         overrides.deletedIds.push(id);
       }
       rebuildWorkingData();
+      updateDuplicateState();
       await saveOverrides();
       refreshFilterOptions();
       setStatus('Rekod dipadam.');
@@ -783,6 +967,7 @@ document.getElementById('addForm').addEventListener('submit', async e => {
   }
 
   rebuildWorkingData();
+  updateDuplicateState();
   await saveOverrides();
   refreshFilterOptions();
   page = 1;
@@ -790,53 +975,258 @@ document.getElementById('addForm').addEventListener('submit', async e => {
   closeModal();
 });
 
-// ---- CSV import ----
+// ---- Excel / CSV import + duplicate detection ----
+const DUP_FIELDS = ['File No','Project Code','Staff ID','Title'];
+
+function normalizeDuplicateValue(v){
+  return String(v ?? '')
+    .normalize('NFKC')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g,' ')
+    .replace(/[“”"'`]/g,'')
+    .replace(/[–—]/g,'-');
+}
+
+function duplicateKeys(rec){
+  const keys = [];
+  const fileNo = normalizeDuplicateValue(rec['File No']);
+  const projectCode = normalizeDuplicateValue(rec['Project Code']);
+  const staffId = normalizeDuplicateValue(rec['Staff ID']);
+  const title = normalizeDuplicateValue(rec['Title']);
+  if (fileNo) keys.push({key:'file:'+fileNo, basis:'No. Fail'});
+  if (projectCode) keys.push({key:'project:'+projectCode, basis:'Kod Projek'});
+  if (staffId && title) keys.push({key:'stafftitle:'+staffId+'|'+title, basis:'Staff ID + Tajuk'});
+  if (title) keys.push({key:'title:'+title, basis:'Tajuk'});
+  return keys;
+}
+
+function findDuplicateMatch(rec, pool){
+  const recKeys = duplicateKeys(rec);
+  if (!recKeys.length) return null;
+  for (const candidate of pool){
+    const candidateKeys = duplicateKeys(candidate);
+    const hit = recKeys.find(a => candidateKeys.some(b => a.key === b.key));
+    if (hit) return {record:candidate, basis:hit.basis};
+  }
+  return null;
+}
+
+function duplicateSummaryText(){
+  const n = duplicateRecords.length;
+  const m = importedDuplicateRecords.length;
+  return `DUPLIKAT DIKESAN: ${n} rekod &nbsp;·&nbsp; ${m} daripada import terakhir`;
+}
+
+function renderDuplicateModal(){
+  const all = duplicateRecords;
+  document.getElementById('duplicateSummary').innerHTML =
+    `${duplicateSummaryText()}<br><span style="color:var(--paper-dim)">Padanan dibuat menggunakan No. Fail, Kod Projek, Staff ID + Tajuk, atau Tajuk. Perbezaan huruf besar/kecil dan ruang berlebihan diabaikan.</span>`;
+  const list = document.getElementById('duplicateList');
+  if (!all.length){
+    list.innerHTML = '<div class="duplicate-empty">✓ TIADA DUPLIKAT DIKESAN</div>';
+  } else {
+    list.innerHTML = all.map((d,i) => `
+      <div class="duplicate-row">
+        <strong>#${i+1} · ${d.reason || 'Padanan'}</strong><br>
+        <b>Import:</b> ${escapeHtml(d.imported?.['Title'] || 'Tanpa tajuk')}<br>
+        <span style="color:var(--paper-dim)">Penyelidik: ${escapeHtml(d.imported?.["Lead Researcher's"] || '—')} · Staff ID: ${escapeHtml(d.imported?.['Staff ID'] || '—')} · No. Fail: ${escapeHtml(d.imported?.['File No'] || '—')}</span><br>
+        <b>Sedia ada:</b> ${escapeHtml(d.existing?.['Title'] || 'Tanpa tajuk')}<br>
+        <span style="color:var(--paper-dim)">Penyelidik: ${escapeHtml(d.existing?.["Lead Researcher's"] || '—')} · Staff ID: ${escapeHtml(d.existing?.['Staff ID'] || '—')} · No. Fail: ${escapeHtml(d.existing?.['File No'] || '—')}</span>
+      </div>
+    `).join('');
+  }
+  document.getElementById('duplicateBadge').textContent = all.length ? all.length : '0';
+}
+
+function escapeHtml(value){
+  return String(value ?? '').replace(/[&<>"']/g, ch => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[ch]));
+}
+
+function updateDuplicateState(){
+  const seen = new Map();
+  duplicateRecords = [];
+  for (const rec of workingData){
+    const keys = duplicateKeys(rec);
+    for (const k of keys){
+      if (seen.has(k.key)){
+        const prior = seen.get(k.key);
+        // Avoid adding many reports for the same pair.
+        const exists = duplicateRecords.some(x =>
+          (x.existing?._id===prior._id && x.imported?._id===rec._id) ||
+          (x.existing?._id===rec._id && x.imported?._id===prior._id)
+        );
+        if (!exists) duplicateRecords.push({
+          imported: rec._source==='added' ? rec : prior,
+          existing: rec._source==='added' ? prior : rec,
+          reason:k.basis
+        });
+      } else {
+        seen.set(k.key, rec);
+      }
+    }
+  }
+  renderDuplicateModal();
+}
+
+function normalizeImportedRow(r){
+  const get = (...names) => {
+    for (const name of names){
+      if (Object.prototype.hasOwnProperty.call(r,name) && r[name] !== '' && r[name] != null) return r[name];
+    }
+    return '';
+  };
+  const dsRaw = get('Date Start','Start Date','Tarikh Mula');
+  const deRaw = get('Date End','End Date','Tarikh Tamat');
+  const toDate = v => {
+    if (v == null || v === '') return '';
+    if (v instanceof Date && !isNaN(v)) return v.toISOString().slice(0,10);
+    if (typeof v === 'number' && window.XLSX?.SSF){
+      const d = XLSX.SSF.parse_date_code(v);
+      if (d && d.y) return `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`;
+    }
+    const str = String(v).trim();
+    if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(str)){
+      const [y,m,d]=str.split('-'); return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    }
+    const m = str.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/);
+    if (m) return `${m[3]}-${String(m[2]).padStart(2,'0')}-${String(m[1]).padStart(2,'0')}`;
+    return str;
+  };
+  const ds=toDate(dsRaw), de=toDate(deRaw);
+  const num = v => {
+    if (v == null || v === '') return null;
+    const n=Number(String(v).replace(/,/g,'').replace(/RM/gi,'').trim());
+    return isNaN(n) ? null : n;
+  };
+  const text = (...names) => String(get(...names) ?? '').trim();
+  return {
+    'Grant Type':text('Grant Type','Jenis Geran'),
+    'File No':text('File No','No. Fail','File Number'),
+    'Project Code':text('Project Code','Kod Projek'),
+    'Title':text('Title','Tajuk Projek','Tajuk'),
+    "Lead Researcher's":text("Lead Researcher's",'Lead Researcher','Penyelidik Ketua','Ketua Penyelidik'),
+    'Staff ID':text('Staff ID','StaffID','No. Staff','Staff No'),
+    'Date Start':ds,
+    'Date Start (Year)':ds ? Number(ds.slice(0,4)) : num(get('Date Start (Year)','Tahun Mula')),
+    'Date End':de,
+    'Date End (Year)':de ? Number(de.slice(0,4)) : num(get('Date End (Year)','Tahun Tamat')),
+    'Category':text('Category','Kategori'),
+    'Financing Agencies':text('Financing Agencies','Funding Agency','Agensi Pembiaya'),
+    'Status':text('Status') || 'Active',
+    'Cost (RM)':num(get('Cost (RM)','Cost','Kos (RM)','Kos')),
+    'Balance (RM)':num(get('Balance (RM)','Balance','Baki (RM)','Baki')),
+    'Faculty':text('Faculty','Fakulti'),
+    'Campus':text('Campus','Kampus'),
+    'Progress(%)':num(get('Progress(%)','Progress (%)','Progress','Progres (%)'))
+  };
+}
+
+function makeAddedRecord(fields, index){
+  return {
+    ...fields,
+    '_id':'added-' + Date.now() + '-' + Math.random().toString(36).slice(2,8) + '-' + index,
+    '_source':'added'
+  };
+}
+
+async function importRowsWithDuplicateCheck(rows, fileName){
+  const valid = rows.map(normalizeImportedRow).filter(r => r.Title);
+  if (!valid.length) throw new Error('Tiada baris yang mempunyai Tajuk Projek.');
+
+  const accepted = [];
+  const duplicates = [];
+  const pool = [...workingData];
+
+  for (const rec of valid){
+    const match = findDuplicateMatch(rec, pool);
+    if (match){
+      duplicates.push({imported:rec, existing:match.record, reason:match.basis});
+      continue;
+    }
+    const withinImport = findDuplicateMatch(rec, accepted);
+    if (withinImport){
+      duplicates.push({imported:rec, existing:withinImport.record, reason:withinImport.basis + ' (dalam fail import)'});
+      continue;
+    }
+    accepted.push(rec);
+  }
+
+  accepted.forEach((rec,i)=>overrides.added.push(makeAddedRecord(rec,i)));
+
+  importedDuplicateRecords = duplicates;
+  rebuildWorkingData();
+  updateDuplicateState();
+  await saveOverrides();
+  refreshFilterOptions();
+  page=1;
+  render();
+
+  const dupCount=duplicates.length;
+  const msg = `${accepted.length} rekod diimport dari ${fileName}.` +
+    (dupCount ? ` ${dupCount} duplikat tidak diimport.` : ' Tiada duplikat.');
+  setStatus(msg, !!dupCount);
+  if (dupCount) {
+    duplicateRecords = [
+      ...duplicates.map(d => ({...d, imported:{...d.imported, _id:'import-preview'}})),
+      ...duplicateRecords
+    ];
+    renderDuplicateModal();
+    document.getElementById('duplicateOverlay').classList.add('open');
+  }
+}
+
 document.getElementById('importBtn').addEventListener('click', () => document.getElementById('importFile').click());
 document.getElementById('importFile').addEventListener('change', async e => {
-  const file = e.target.files[0];
+  const file=e.target.files[0];
   if (!file) return;
   try{
-    const text = await file.text();
-    const rows = parseCSV(text);
-    if (!rows.length){ setStatus('Fail CSV kosong atau format tidak sah.', true); return; }
-    let count = 0;
-    rows.forEach(r => {
-      const ds = (r['Date Start']||'').trim();
-      const de = (r['Date End']||'').trim();
-      const rec = {
-        'Grant Type': (r['Grant Type']||'').trim(),
-        'File No': (r['File No']||'').trim(),
-        'Project Code': (r['Project Code']||'').trim(),
-        'Title': (r['Title']||'').trim(),
-        "Lead Researcher's": (r["Lead Researcher's"]||'').trim(),
-        'Staff ID': (r['Staff ID']||'').trim(),
-        'Date Start': ds,
-        'Date Start (Year)': ds ? Number(ds.slice(0,4)) : (r['Date Start (Year)'] ? Number(r['Date Start (Year)']) : null),
-        'Date End': de,
-        'Date End (Year)': de ? Number(de.slice(0,4)) : (r['Date End (Year)'] ? Number(r['Date End (Year)']) : null),
-        'Category': (r['Category']||'').trim(),
-        'Financing Agencies': (r['Financing Agencies']||'').trim(),
-        'Status': (r['Status']||'').trim() || 'Active',
-        'Cost (RM)': r['Cost (RM)'] ? Number(String(r['Cost (RM)']).replace(/,/g,'')) : null,
-        'Balance (RM)': r['Balance (RM)'] ? Number(String(r['Balance (RM)']).replace(/,/g,'')) : null,
-        'Faculty': (r['Faculty']||'').trim(),
-        'Campus': (r['Campus']||'').trim(),
-        'Progress(%)': r['Progress(%)'] ? Number(r['Progress(%)']) : null,
-        '_id': 'added-' + Date.now() + '-' + Math.random().toString(36).slice(2,7) + '-' + count,
-        '_source': 'added',
-      };
-      if (rec.Title){ overrides.added.push(rec); count++; }
-    });
-    rebuildWorkingData();
-    await saveOverrides();
-    refreshFilterOptions();
-    page = 1;
-    render();
-    setStatus(count + ' rekod diimport & disimpan.');
+    const ext=file.name.toLowerCase().split('.').pop();
+    let rows=[];
+    if (ext==='csv'){
+      rows=parseCSV(await file.text());
+    } else {
+      if (!window.XLSX) throw new Error('Pustaka Excel belum dimuatkan. Pastikan komputer mempunyai internet.');
+      const buf=await file.arrayBuffer();
+      const wb=XLSX.read(buf,{type:'array',cellDates:true});
+      wb.SheetNames.forEach(sheetName=>{
+        const sheet=wb.Sheets[sheetName];
+        const sheetRows=XLSX.utils.sheet_to_json(sheet,{defval:'',raw:true});
+        rows.push(...sheetRows);
+      });
+    }
+    await importRowsWithDuplicateCheck(rows,file.name);
   }catch(err){
-    setStatus('Ralat membaca fail CSV.', true);
+    console.error(err);
+    setStatus('Ralat import: '+(err.message||'format fail tidak sah.'),true);
   }
-  e.target.value = '';
+  e.target.value='';
+});
+
+document.getElementById('duplicateBtn').addEventListener('click',()=>{
+  updateDuplicateState();
+  document.getElementById('duplicateOverlay').classList.add('open');
+});
+document.getElementById('duplicateClose').addEventListener('click',()=>document.getElementById('duplicateOverlay').classList.remove('open'));
+document.getElementById('duplicateCloseBtn').addEventListener('click',()=>document.getElementById('duplicateOverlay').classList.remove('open'));
+document.getElementById('duplicateOverlay').addEventListener('click',e=>{
+  if(e.target.id==='duplicateOverlay') e.currentTarget.classList.remove('open');
+});
+document.getElementById('duplicateClearBtn').addEventListener('click',async()=>{
+  if(!duplicateRecords.length) return;
+  const importedIds=new Set(duplicateRecords.map(d=>d.imported?._id).filter(Boolean));
+  const before=overrides.added.length;
+  overrides.added=overrides.added.filter(r=>!importedIds.has(r._id));
+  const removed=before-overrides.added.length;
+  rebuildWorkingData();
+  await saveOverrides();
+  refreshFilterOptions();
+  page=1;
+  render();
+  updateDuplicateState();
+  setStatus(`${removed} rekod import duplikat dipadam.`);
 });
 
 function parseCSV(text){
@@ -874,6 +1264,7 @@ document.getElementById('resetDataBtn').addEventListener('click', async () => {
   overrides = { added: [], deletedIds: [], edited: {} };
   await saveOverrides();
   rebuildWorkingData();
+  updateDuplicateState();
   refreshFilterOptions();
   page = 1;
   render();
@@ -884,6 +1275,7 @@ document.getElementById('resetDataBtn').addEventListener('click', async () => {
 (async function init(){
   await loadOverrides();
   refreshFilterOptions();
+  updateDuplicateState();
   render();
 })();
 
